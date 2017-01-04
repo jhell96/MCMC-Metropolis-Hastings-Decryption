@@ -1,3 +1,8 @@
+"""
+Author: Josh Hellerstein
+Date: 1/4/2017
+File: util.py
+"""
 from __future__ import division
 
 class Distribution(dict):
