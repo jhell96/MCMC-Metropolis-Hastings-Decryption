@@ -1,12 +1,12 @@
 # MCMC-Metropolis-Hastings-Decryption
 Uses the Metropolis-Hastings algorithm to decode a simple substitution cipher on 26 lowercase characters of the alphabet.
-Could potentially used to decode cryptograms of medium length.
+Could potentially be used to decode cryptograms of medium length.
 
 ## Process and Comments:
 - Builds a frequency distribution of letter-transitions from War and Peace.
 - Explores 26! ciphers (permutations of the alphabet) using the Metropolis-Hastings algorithm greedily, by maximizing the log-likelihood of the document, based on the letter-transition distribution.
 - Metropolis-Hastings avoids local maxima, and usually converges to the correct solution within 3000 "accepted samples." 
-- An sample is accepted when:
+- A sample is accepted when:
 ```python
 random.random() < math.exp(log_likelihood_proposal_cipher - log_likelihood_current_cipher)
 ```
@@ -23,3 +23,6 @@ random.random() < math.exp(log_likelihood_proposal_cipher - log_likelihood_curre
 ## References:
 - 6.008 course at MIT
 - [The Markov Chain Monte Carlo Revolution](http://statweb.stanford.edu/~cgates/PERSI/papers/MCMCRev.pdf) 
+
+## License:
+[Standard MIT License](../master/LICENSE)
