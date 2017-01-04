@@ -3,17 +3,35 @@ from util import Distribution
 import string
 import math
 import random
+import sys
 
 import matplotlib.pyplot as plt
 
 def build_letter_transition_dist(file):
+	"""
+	Builds a transition matrix (dict of dicts) which measures the probability of transitioning from 
+	one letter to another letter, based on the frequencies from the sample file. 
+	i.e. "Spam and Eggs" measures frequency of s->p, p->a, a->m, m->" ", " "->a, a->n etc...
+
+	Inputs
+	------
+	file : a string which is the path to a file containing the reference document
+
+	Returns
+	-------
+	a dictionary of Distribution objects (inherited from dict - see util) where each 
+	key is a letter, and each key of each Distribution object is also a letter; the
+	value is the probablity of transitioning between letters, 
+	i.e. d[first_letter][second_letter] = Probability of first_letter -> second_letter	
+	"""
 	charset = string.lowercase+" "
 
 	dist = {key:Distribution() for key in charset}
 	
 	doc = clean_document(open(file).read())
 	
-	#laplace smoothing, setting the prior to uniform distribution
+	# laplace smoothing - setting the prior to a uniform distribution.
+	# avoids probabilites of 0 in the transition distirbution.
 	for a in charset:
 		for b in charset:
 			dist[a][b] += 1
@@ -30,6 +48,9 @@ def build_letter_transition_dist(file):
 	return dist
 
 def plot_freq(dist):
+	"""
+	Plots the transition distribution created in build_letter_transition_dist -- for utility and visualization
+	"""
 	data = [ [dist[i][j] for j in dist[i]] for i in dist]
 	charset = [i for i in dist]
 
@@ -51,29 +72,52 @@ def plot_freq(dist):
 	plt.show()
 
 def clean_document(document):
+	"""
+	Removes punctuation from a document, and converts everything to lowercase
+	"""
 	return document.translate(None, string.punctuation).lower()
 
 def compute_log_likelihood(document, expected_letter_distribution):
 	"""
+	Computes the log-likelihood of a document
+
 	Inputs
 	------
-	document : a string to compute the likelihood of
+	document : a string, of which, we compute the likelihood
 
-	expected_letter_distribution : a 
+	expected_letter_distribution : a dictionary of Distribution objects (inherited from dict - see util) where each 
+									key is a letter, and each key of each Distribution object is also a letter; the
+									value is the probablity of transitioning between letters, 
+									i.e. d[first_letter][second_letter] = Probability of first_letter -> second_letter
 
 	Returns
 	-------
-	
+	a double which is the log-likelihood of the document	
 	"""
 	s = 0
+
 	for i in range(1, len(document)):
-		first_letter = document[i-1] if document[i-1].isalpha() else " "
-		second_letter = document[i] if document[i].isalpha() else " "
+		first_letter = document[i-1].lower() if document[i-1].isalpha() else " "
+		second_letter = document[i].lower() if document[i].isalpha() else " "
 		s += math.log(expected_letter_distribution[first_letter][second_letter])
 
 	return s
 
 def decrypt_document(encrypted_document, cipher):
+	"""
+	Decrypts a document from a cipher
+
+	Inputs
+	------
+	encrypted_document : a string, which we want to transform with a cipher
+
+	cipher : a string, in which order matters, that is mapped to from the alphabet in the 
+			 encrypted document i.e. abcdefg.. -> udhjenk...
+
+	Returns
+	-------
+	a string in which each original letter, is replaced with its corresponding letter in the cipher
+	"""
 	mapping = create_mapping_from_cipher(cipher)
 	document = ""
 	for c in encrypted_document:
@@ -85,10 +129,35 @@ def decrypt_document(encrypted_document, cipher):
 	return document
 
 def create_mapping_from_cipher(cipher):
+	"""
+	Creates the mapping between the alphabet string and the cipher string
+
+	Inputs
+	------
+	cipher : a string, in which order matters, that is mapped to from the alphabet in the 
+			 encrypted document i.e. abcdefg.. -> udhjenk...
+
+	Returns
+	-------
+	a dictionary in which each key is a letter of the alphabet, and each value is
+	the corresponding letter in the cipher
+	"""
 	charset = list(string.lowercase)
 	return {charset.pop(0):elem for elem in cipher}
 
 def propose_cipher(current_cipher):
+	"""
+	Proposes a new cipher by randomly swapping the place of two letters in the current cipher
+
+	Inputs
+	------
+	current_cipher : a string, in which order matters, that is mapped to from the alphabet in the 
+			 		 encrypted document i.e. abcdefg.. -> udhjenk...
+
+	Returns
+	-------
+	a string, which is the new proposed cipher
+	"""
 	first_letter = random.choice(list(current_cipher))
 	second_letter = random.choice(list(current_cipher))
 
@@ -107,14 +176,32 @@ def propose_cipher(current_cipher):
 	return new_cipher
 
 def generate_random_cipher():
-	current_cipher = string.lowercase
-	random.shuffle(list(current_cipher))
+	"""
+	Generates a random cipher string
+
+	Returns
+	-------
+	a string, containing all the letters of the alphabet, in a randomly permuated order
+	"""
+	current_cipher = list(string.lowercase)
+	random.shuffle(current_cipher)
 	return "".join(current_cipher) 
 
 def acceptance_criteria(log_proposal, log_current):
+	"""
+	Accepts the sample according to the Metropolis-Hastings algorithm
+	"""
 	return (random.random() < math.exp(log_proposal - log_current))
 
-def run_metropolis_hastings(encrypted_document, expected_letter_distribution):
+def run_metropolis_hastings(encrypted_document, expected_letter_distribution, max_acceptance_iter=4000):
+	"""
+	Runs the Metropolis-Hastings algorithm to decode the document. The iteration number represents 
+	the number of accepted samples from the distribution, and depends heavily on the length of the document
+	to be decoded: A longer document usually implies smaller terminal iteration number. 
+
+	If it doesn't decode the document the first time, it is often useful to run multiple times to yield the best
+	cipher.
+	"""
 	encrypted_document = clean_document(encrypted_document)
 
 	current_cipher = generate_random_cipher()
@@ -123,8 +210,6 @@ def run_metropolis_hastings(encrypted_document, expected_letter_distribution):
 
 	number_accepted = 0
 	i = 0
-
-	max_acceptance_iter = 8000
 
 	while(number_accepted < max_acceptance_iter): 
 		i+=1
@@ -144,20 +229,26 @@ def run_metropolis_hastings(encrypted_document, expected_letter_distribution):
 			number_accepted += 1
 			current_cipher = proposal_cipher
 
-		print number_accepted, i, best_document
+		print number_accepted, i
+		print best_document
 
 	return best_document
 
-def encrypt_text(document):
+def encrypt_document(document):
+	"""
+	Useful method to encrypt a document using a random cipher
+	"""
 	cipher = generate_random_cipher()
 	return decrypt_document(document, cipher)
 
-# plot_freq(build_letter_transition_dist("../war_and_peace.txt"))
-text = "athzq qzmtby du ux kyvv cduwxuyc mxkzbcu maxuy kax zby dq dqmybyumdqi udmtzmdxqu mazm z lxtqi wybuxq kax ydmayb hzbbdyu xb cdyu du utby xp fydqi ndqcvl uwxnyq xp"
-text2 = "txpub rezeh xjddj lepdg cpjrj edgbc dlztx jgrzs oepss txjtx zetpd jttxp pedbm siuup rtxpf sptmb rtxjt djfyr pjqtb sppju jeypx pjdpd tlpet fzejc cjedy rjerb dpjub ehtxp ueprv bislz txpag ztpup ettxz sljst xpmzr sttzu pxpxj dyppe dppup dbcdp ebihx tbhbl ztxxz scbrd mjtxp rjedx zsyrb txprs tbspp txpqz ehswi stzgp dbepz tljst xpeze txfpj rbmsi uuprj edtxp spvpe txbmy rjesc zmptx pujex jdypp etjqp ebits zdpjs ujccx bcdmj stzet xpxzc csrby ytxbi hxtxp ljsjl zcdcz ehxzs slbrd slbre tbuje gprjf dprtx pqzeh ypfbe dtxpl jcczt ujdpy rjess qzeor zgqcp tbtxz eqbmz txprp upuyp rpdtx pxpjr txtjc psbcd ejetb cdtxp utxpl zcdcz ehslp rpgri pcupe sxpsj zdscj vprsj edscj fprsj edtxz pvps"
-text3 = encrypt_text(open("example.txt").read())
-text4 = " TISTL HADRTS HAD SO PT OL IOS SO PT SHAS ME SHT BUTESMOI WHTSHTL SME IOPRTL "
-text5 = "czonk o gosk ovt? zt gikn zieea gpet nzonk oxx jeog ws o uoa czon zwk apinz nppb o atoe np zpxu"
-text6 = "ojkwk xt lnojxlz fnwk ylkdyqr ojql ojk kdyqr owkqofklo ns ylkdyqr gkngrk"
-run_metropolis_hastings(text, build_letter_transition_dist("war_and_peace.txt"))
-# print compute_log_likelihood("abd abd abd abd", build_letter_transition_dist("../war_and_peace.txt"))
+if __name__ == '__main__':
+    if len(sys.argv) != 4:
+        print "Usage: python mcmc.py <path to file to decode> <number of iterations> <path to reference document>"
+        print "Example: python mcmc.py decode_this.txt 2000 war_and_peace.txt"
+        sys.exit(1)
+
+    file_to_decode = open(sys.argv[1]).read()
+    expected_letter_distribution = build_letter_transition_dist(sys.argv[3])
+    iterations = int(sys.argv[2])
+
+    print run_metropolis_hastings(file_to_decode, expected_letter_distribution, iterations)
