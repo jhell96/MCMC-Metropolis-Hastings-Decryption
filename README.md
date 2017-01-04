@@ -1,3 +1,4 @@
+
 # MCMC-Metropolis-Hastings-Decryption
 Uses the Metropolis-Hastings algorithm to decode a simple substitution cipher on 26 lowercase characters of the alphabet.
 Could potentially be used to decode cryptograms of medium length.
@@ -12,6 +13,7 @@ random.random() < math.exp(log_likelihood_proposal_cipher - log_likelihood_curre
 ```
 - Longer coded documents tend to converge with less accepted samples.
 - Only requires `matplotlib` for visualization -- can run with only standard python libraries.
+- Python 2.7
 
 ## Usage:
 - Format to run is: `python mcmc.py <path to file to decode> <number of iterations> <path to reference document>`
